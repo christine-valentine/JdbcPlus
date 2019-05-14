@@ -10,13 +10,16 @@ import com.hebaibai.jdbcplus.maker.query.DefaultQuery;
 import com.hebaibai.jdbcplus.maker.query.Query;
 import com.hebaibai.jdbcplus.maker.update.DefaultUpdate;
 import com.hebaibai.jdbcplus.maker.update.Update;
-import com.hebaibai.jdbcplus.mapper.FieldColumnRowMapper;
+import com.hebaibai.jdbcplus.mapper.EntityTableRowMapper;
+import com.hebaibai.jdbcplus.mapper.ListEntityResultSetHandler;
 import com.hebaibai.jdbcplus.util.ClassUtils;
 import com.hebaibai.jdbcplus.util.EntityUtils;
-import lombok.extern.apachecommons.CommonsLog;
-import org.springframework.dao.support.DataAccessUtils;
-import org.springframework.jdbc.core.JdbcTemplate;
+import lombok.SneakyThrows;
+import lombok.extern.java.Log;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.MapListHandler;
 
+import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
@@ -27,11 +30,12 @@ import java.util.Map;
  *
  * @author hjx
  */
-@CommonsLog
+@Log
 public class JdbcPlus {
 
-    private JdbcTemplate jdbcTemplate;
+    private QueryRunner queryRunner;
 
+    private DataSource dataSource;
 
     /**
      * 查询所有
@@ -160,7 +164,7 @@ public class JdbcPlus {
         if (list.size() == 0) {
             return null;
         }
-        return DataAccessUtils.requiredSingleResult(list);
+        return list.get(0);
     }
 
     /**
@@ -172,8 +176,9 @@ public class JdbcPlus {
      * @param <T>
      * @return
      */
+    @SneakyThrows
     final public <T> List<T> selectBySql(final String sql, final Object[] sqlValues, final Class<T> objClass) {
-        return jdbcTemplate.query(sql, sqlValues, new FieldColumnRowMapper(objClass));
+        return queryRunner.query(sql, new ListEntityResultSetHandler(objClass), sqlValues);
     }
 
     /**
@@ -184,8 +189,9 @@ public class JdbcPlus {
      * @param <T>
      * @return
      */
+    @SneakyThrows
     final public <T> List<T> selectBySql(final String sql, final Class<T> objClass) {
-        return jdbcTemplate.query(sql, new FieldColumnRowMapper(objClass));
+        return queryRunner.query(sql, new ListEntityResultSetHandler(objClass));
     }
 
     /**
@@ -196,12 +202,13 @@ public class JdbcPlus {
      * @param columnNames 数据库中的字段个名称
      * @return
      */
+    @SneakyThrows
     final public List<Map<String, Object>> selectColumnForList(final Class entityClass, final List<Where> wheres, final String... columnNames) {
         Query query = new DefaultQuery();
         query.target(entityClass);
         query.addQueryColumns(Arrays.asList(columnNames));
         query.where(wheres);
-        return jdbcTemplate.queryForList(query.toSql(), query.getSqlValues());
+        return queryRunner.query(query.toSql(), query.getSqlValues(), new MapListHandler());
     }
 
     /**
@@ -212,8 +219,13 @@ public class JdbcPlus {
      * @param columnNames 数据库中的字段个名称
      * @return
      */
+    @SneakyThrows
     final public Map<String, Object> selectColumnForMap(final Class entityClass, final List<Where> wheres, final String... columnNames) {
-        return DataAccessUtils.requiredSingleResult(selectColumnForList(entityClass, wheres, columnNames));
+        List<Map<String, Object>> maps = selectColumnForList(entityClass, wheres, columnNames);
+        if (maps.size() == 0) {
+            return null;
+        }
+        return maps.get(0);
     }
 
     /**
@@ -282,22 +294,6 @@ public class JdbcPlus {
         return insertBy(insert);
     }
 
-    /**
-     * 批量插入
-     *
-     * @param entityClass
-     * @param entities
-     * @return
-     */
-    final public <T> Integer insertBatch(Class<T> entityClass, final List<T> entities) {
-        Insert insert = new DefaultInsert();
-        insert.target(entityClass);
-        for (int i = 0; i < entities.size(); i++) {
-            Object entity = entities.get(i);
-            insert.insert(entity);
-        }
-        return insertBy(insert);
-    }
 
     /**
      * 根据id更新数据
@@ -338,14 +334,11 @@ public class JdbcPlus {
      * @param insert
      * @return
      */
+    @SneakyThrows
     final public Integer insertBy(final Insert insert) {
         String sql = insert.toSql();
         Object[] sqlValues = insert.getSqlValues();
-        if (log.isDebugEnabled()) {
-            log.debug(sql);
-            log.debug(Arrays.toString(sqlValues));
-        }
-        return jdbcTemplate.update(sql, sqlValues);
+        return queryRunner.execute(sql, sqlValues);
     }
 
     /**
@@ -354,14 +347,11 @@ public class JdbcPlus {
      * @param delete
      * @return
      */
+    @SneakyThrows
     final public Integer deleteBy(final Delete delete) {
         String sql = delete.toSql();
         Object[] sqlValues = delete.getSqlValues();
-        if (log.isDebugEnabled()) {
-            log.debug(sql);
-            log.debug(Arrays.toString(sqlValues));
-        }
-        return jdbcTemplate.update(sql, sqlValues);
+        return queryRunner.execute(sql, sqlValues);
     }
 
     /**
@@ -370,14 +360,11 @@ public class JdbcPlus {
      * @param update
      * @return
      */
+    @SneakyThrows
     final public Integer updateBy(final Update update) {
         String sql = update.toSql();
         Object[] sqlValues = update.getSqlValues();
-        if (log.isDebugEnabled()) {
-            log.debug(sql);
-            log.debug(Arrays.toString(sqlValues));
-        }
-        return jdbcTemplate.update(sql, sqlValues);
+        return queryRunner.execute(sql, sqlValues);
     }
 
     /**
@@ -386,28 +373,19 @@ public class JdbcPlus {
      * @param query
      * @return
      */
+    @SneakyThrows
     final public List selectBy(final Query query) {
-        EntityTableRowMapper mapper = EntityMapperFactory.getMapper(query.getEntity());
-        mapper.setJdbcPlus(this);
         String sql = query.toSql();
         Object[] sqlValues = query.getSqlValues();
-        if (log.isDebugEnabled()) {
-            log.debug(sql);
-            log.debug(Arrays.toString(sqlValues));
-        }
-        return jdbcTemplate.query(sql, sqlValues, mapper);
+        return queryRunner.query(sql, sqlValues, new ListEntityResultSetHandler(query.getEntity()));
     }
 
-
-    public JdbcPlus() {
-        EntityMapperFactory.setJdbcPlus(this);
+    public DataSource getDataSource() {
+        return dataSource;
     }
 
-    public JdbcTemplate getJdbcTemplate() {
-        return jdbcTemplate;
-    }
-
-    public void setJdbcTemplate(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+        this.queryRunner = new QueryRunner(dataSource);
     }
 }

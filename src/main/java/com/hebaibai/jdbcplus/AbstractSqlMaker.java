@@ -2,8 +2,8 @@ package com.hebaibai.jdbcplus;
 
 import com.hebaibai.jdbcplus.maker.SqlMaker;
 import com.hebaibai.jdbcplus.maker.Where;
+import com.hebaibai.jdbcplus.mapper.EntityTableRowMapper;
 import com.hebaibai.jdbcplus.util.StringUtils;
-import org.springframework.util.Assert;
 
 import java.util.*;
 

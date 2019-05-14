@@ -1,8 +1,9 @@
 package com.hebaibai.jdbcplus;
 
+import com.hebaibai.jdbcplus.mapper.EntityTableRowMapper;
 import com.hebaibai.jdbcplus.util.EntityUtils;
 import lombok.experimental.UtilityClass;
-import org.springframework.util.Assert;
+import com.hebaibai.jdbcplus.Assert;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -16,17 +17,13 @@ import java.util.Set;
  * @author hjx
  */
 @UtilityClass
-class EntityMapperFactory {
+public class EntityMapperFactory {
 
     /**
      * mapper 的 缓存
      */
     private static Map<Class, EntityTableRowMapper> entityTableRowMapperMap = new HashMap<>();
 
-    /**
-     * 数据库的操作类
-     */
-    private static JdbcPlus jdbcPlus;
 
     /**
      * 获取mapper
@@ -40,7 +37,6 @@ class EntityMapperFactory {
         //即使出现了并发的问题，无非就是多创建几次对象，不会出现数据错乱。
         if (entityTableRowMapperMap.get(clz) == null) {
             mapper = new EntityTableRowMapper();
-            mapper.setJdbcPlus(jdbcPlus);
             Map<String, Field> columnFieldMap = EntityUtils.columnFieldMap(clz);
             int size = columnFieldMap.size();
             Map<String, String> fieldNameColumnMapper = new HashMap<>(size);
@@ -66,9 +62,4 @@ class EntityMapperFactory {
         return entityTableRowMapperMap.get(clz);
     }
 
-    public static void setJdbcPlus(final JdbcPlus jdbcPlus) {
-        if (EntityMapperFactory.jdbcPlus == null) {
-            EntityMapperFactory.jdbcPlus = jdbcPlus;
-        }
-    }
 }

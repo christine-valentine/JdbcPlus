@@ -1,7 +1,7 @@
 package com.hebaibai.jdbcplus.util;
 
 import lombok.experimental.UtilityClass;
-import org.springframework.util.Assert;
+import com.hebaibai.jdbcplus.Assert;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

@@ -2,11 +2,14 @@ package com.hebaibai.jdbcplus.jdbc;
 
 import com.hebaibai.jdbcplus.JdbcPlus;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.sql.DataSource;
 import java.beans.PropertyVetoException;
 
+@Setter
+@Getter
 public class JdbcTest {
 
     public JdbcPlus jdbcPlus = null;
@@ -19,16 +22,14 @@ public class JdbcTest {
             e.printStackTrace();
         }
         comboPooledDataSource.setJdbcUrl(
-                "jdbc:mysql://127.0.0.1:3306/demo0?useUnicode=true&characterEncoding=utf-8");
-        comboPooledDataSource.setUser("debian-sys-maint");
-        comboPooledDataSource.setPassword("cDjhZo5Tdul66r8E");
+                "jdbc:mysql://172.31.100.50:3306/pubmidb?useUnicode=true&characterEncoding=utf-8");
+        comboPooledDataSource.setUser("pubmidb");
+        comboPooledDataSource.setPassword("Pubmi@2016");
         DataSource dataSource = comboPooledDataSource;
 
-        JdbcTemplate jdbcTemplate = new JdbcTemplate();
-        jdbcTemplate.setDataSource(dataSource);
-
         jdbcPlus = new JdbcPlus();
-        jdbcPlus.setJdbcTemplate(jdbcTemplate);
+        jdbcPlus.setDataSource(dataSource);
+
     }
 
 }
